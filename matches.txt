@@ -1,0 +1,59 @@
+matches
+{
+    _id: UUID,
+    platformId: third party UUID,
+    title: 'IND vs PAK',
+    startDate: Date,
+    matchStatus: "Sri Lanka won by 9 wkts",
+    "score": [
+        {
+          "r": 146,
+          "w": 5,
+          "o": 20,
+          "inning": "zimbabwe Inning 1"
+        },
+        {
+          "r": 148,
+          "w": 1,
+          "o": 16.2,
+          "inning": "Sri Lanka,Zimbabwe Inning 1"
+        }
+    ],
+    "teams": [
+        "Sri Lanka",
+        "Zimbabwe"
+    ],
+    "teamInfo": [
+        {
+            "name": "Sri Lanka",
+            "shortname": "SL",
+            "img": "https://g.cricapi.com/iapi/4191-638101639309122979.webp?w=48"
+        },
+        {
+            "name": "Zimbabwe",
+            "shortname": "ZIM",
+            "img": "https://g.cricapi.com/iapi/575-637877079629985215.webp?w=48"
+        }
+    ],
+    createdBy: "UUID"
+}
+
+match_questions
+{
+    _id: UUID,
+    matchId: "UUID",
+    question: "Will india win?",
+    tradeYes: Number,
+    tradeNo: Number,
+    createdBy: "UUID"
+}
+
+user_trades
+{
+    _id: UUID,
+    matchId: "UUID",
+    questionId: "UUID",
+    tradeType: "yes" | "no",
+    tradeQuantity: Number,
+    createdBy: "UUID"
+}
