@@ -8,7 +8,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed:all": "node ./src/seeders/index.js",
     "dev":" nodemon src/index.js",
+<<<<<<< HEAD
     "start":"npm run start"
+=======
+    "start":"node src/index.js"
+>>>>>>> ad8e797b7f7e7e315973818c82ac63da1cc79279
   },
   "repository": {
     "type": "git",
