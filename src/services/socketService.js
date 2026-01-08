@@ -8,8 +8,8 @@ const socketExports = {
       cors: {
         origin: "*", // Configure this to your frontend URL in production
         methods: ["GET", "POST"],
-        credentials: true
-      }
+        credentials: true,
+      },
     });
 
     io.on("connection", (socket) => {
@@ -60,7 +60,9 @@ const socketExports = {
 
   getIO: () => {
     if (!io) {
-      throw new Error("Socket.IO not initialized. Call initializeSocket first.");
+      throw new Error(
+        "Socket.IO not initialized. Call initializeSocket first."
+      );
     }
     return io;
   },
@@ -71,19 +73,22 @@ const socketExports = {
     io.to(`order-${orderId}`).emit("order-status-update", {
       orderId,
       ...orderData,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     console.log(`Order status update emitted for order: ${orderId}`);
   },
 
-  emitBetOrderUpdate: (userId, orderData) => {
+  emitBetOrderUpdate: (orderId, orderData) => {
     if (!io) return;
-    io.to(`order-${orderData._id}`).emit("bet-order-update", {
+    io.to(`order-${orderId}`).emit("bet-order-update", {
       ...orderData,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    console.log(`[Socket] Bet Order Update emitted to order-${orderData._id}: Status ${orderData.status}`);
+
+    console.log(
+      `[Socket] Bet Order Update emitted to order-${orderData._id}: Status ${orderData.status}`
+    );
   },
 
   emitBetEventUpdate: (eventId, eventData) => {
@@ -91,12 +96,20 @@ const socketExports = {
     io.to(`event-${eventId}`).emit("bet-event-update", {
       eventId,
       ...eventData,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    console.log(`[Socket] Bet Event Update emitted to event-${eventId}:`, eventData);
-  }
+    console.log(
+      `[Socket] Bet Event Update emitted to event-${eventId}:`,
+      eventData
+    );
+  },
 };
 
-export const { initializeSocket, getIO, emitOrderStatusUpdate, emitBetOrderUpdate, emitBetEventUpdate } = socketExports;
+export const {
+  initializeSocket,
+  getIO,
+  emitOrderStatusUpdate,
+  emitBetOrderUpdate,
+  emitBetEventUpdate,
+} = socketExports;
 export default socketExports;
-
