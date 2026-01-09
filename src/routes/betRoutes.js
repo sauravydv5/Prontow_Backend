@@ -1,38 +1,72 @@
 import express from "express";
 import {
-    refreshMatches,
-    getMatches,
-    createEvent,
-    settleEvent,
-    getCustomerRecords
+  refreshMatches,
+  getMatches,
+  createEvent,
+  settleEvent,
+  getCustomerRecords,
 } from "../controllers/adminEventController.js";
+
 import {
-    getEvents,
-    placeOrder,
-    settleEventUser,
-    getPortfolio,
-    getHistory,
-    getMatchesUser,
-    getEventsByMatch
+  getEvents,
+  getEventDetails,
+  placeOrder,
+  settleEventUser,
+  getPortfolio,
+  getHistory,
+  getMatchesUser,
+  getEventsByMatch,
 } from "../controllers/tradingController.js";
+
 import protect, { adminOnly as admin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Public/User Routes
+/* ======================================================
+   PUBLIC / USER ROUTES
+====================================================== */
+
+// All events (optional filters)
 router.get("/events", getEvents);
-router.get("/matches", getMatchesUser); // Publicly accessible matches
-router.get("/matches/:matchId/events", getEventsByMatch); // Get events for a specific match
+
+// ✅ Event details by eventId
+router.get("/events/:eventId/details", getEventDetails);
+
+// Public matches list
+router.get("/matches", getMatchesUser);
+
+// Events of a specific match
+router.get("/matches/:matchId/events", getEventsByMatch);
+
+// Place order (BUY / SELL)
 router.post("/order", protect, placeOrder);
-router.post("/settle-event/:eventId", protect, settleEventUser); // User-side settlement
+
+// User side event settlement
+router.post("/settle-event/:eventId", protect, settleEventUser);
+
+// User portfolio
 router.get("/portfolio", protect, getPortfolio);
+
+// User trade history
 router.get("/history", protect, getHistory);
 
-// Admin Routes
+/* ======================================================
+   ADMIN ROUTES
+====================================================== */
+
+// Refresh matches from API
 router.post("/admin/refresh-matches", protect, admin, refreshMatches);
+
+// Admin match list
 router.get("/admin/matches", protect, admin, getMatches);
+
+// Create betting event
 router.post("/admin/create-event", protect, admin, createEvent);
+
+// Admin event settlement
 router.post("/admin/settle-event/:eventId", protect, admin, settleEvent);
+
+// Admin customer trading records
 router.get("/admin/customers", protect, admin, getCustomerRecords);
 
 export default router;
