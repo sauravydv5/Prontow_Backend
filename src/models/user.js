@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ["customer", "admin"], default: "customer" },
     isPhoneVerified: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
-    isNew: { type: Boolean, default: true },
+    isNewUser: { type: Boolean, default: true },
     isBlocked: { type: Boolean, default: false },
     lastLogin: { type: Date },
     rating: {
