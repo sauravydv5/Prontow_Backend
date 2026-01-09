@@ -39,6 +39,7 @@ export const createEvent = async (req, res) => {
             noPrice,
             currentYesPrice: yesPrice,
             currentNoPrice: noPrice,
+             status: "OPEN",
             createdBy: req.user._id
         });
 
