@@ -10,6 +10,8 @@ import {
 import {
   getEvents,
   getEventDetails,
+  getOrderBook,
+  getMyEventDetails,
   placeOrder,
   settleEventUser,
   getPortfolio,
@@ -49,6 +51,12 @@ router.get("/portfolio", protect, getPortfolio);
 
 // User trade history
 router.get("/history", protect, getHistory);
+
+// ✅ Event order book
+router.get("/events/:eventId/orderbook", getOrderBook);
+
+// ✅ My orders for a specific event
+router.get("/events/:eventId/my-details", protect, getMyEventDetails);
 
 /* ======================================================
    ADMIN ROUTES
