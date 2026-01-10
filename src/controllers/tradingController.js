@@ -353,7 +353,6 @@ export const getOrderBook = async (req, res) => {
 };
 
 //Get My Event Details
-
 export const getMyEventDetails = async (req, res) => {
   try {
     const { eventId } = req.params;
