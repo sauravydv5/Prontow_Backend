@@ -2,6 +2,8 @@ import BetEvent from "../models/BetEvent.js";
 import BetPosition from "../models/BetPosition.js";
 import CricketMatch from "../models/CricketMatch.js";
 import BetOrder from "../models/BetOrder.js";
+import LiveScore from "../models/LiveScore.js";
+import Team from "../models/Team.js";
 import {
   placeOrder as placeOrderEngine,
   settleEvent as settleEventEngine,
@@ -321,6 +323,87 @@ export const getMyEventDetails = async (req, res) => {
     res.status(500).json({
       status: false,
       message: error.message,
+    });
+  }
+};
+
+// Live score Api
+
+export const getEventWithLiveScore = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const event = await BetEvent.findById(eventId).populate({
+      path: "match",
+      populate: [
+        { path: "teamA", model: "Team" },
+        { path: "teamB", model: "Team" },
+      ],
+    });
+
+    if (!event || !event.match) {
+      return res.status(404).json({
+        status: false,
+        message: "Event or match not found",
+      });
+    }
+
+    const liveScore = await LiveScore.findOne({ eventId });
+
+    let teamA = event.match.teamA;
+    let teamB = event.match.teamB;
+
+    /* 🔥 FALLBACK: OLD MATCH DATA SUPPORT */
+    // Agar teamA / teamB ObjectId nahi mile
+    if ((!teamA || !teamB) && event.match.teams?.length >= 2) {
+      const [teamAName, teamBName] = event.match.teams;
+
+      teamA = await Team.findOne({ name: teamAName });
+      teamB = await Team.findOne({ name: teamBName });
+    }
+
+    /* 🔥 FLAG SAFETY */
+    const teamAData = teamA
+      ? {
+          name: teamA.name,
+          flag: teamA.flagUrl,
+          score: liveScore?.teamA || null,
+        }
+      : {
+          name: null,
+          flag: null,
+          score: liveScore?.teamA || null,
+        };
+
+    const teamBData = teamB
+      ? {
+          name: teamB.name,
+          flag: teamB.flagUrl,
+          score: liveScore?.teamB || null,
+        }
+      : {
+          name: null,
+          flag: null,
+          score: liveScore?.teamB || null,
+        };
+
+    res.json({
+      status: true,
+      data: {
+        eventId: event._id,
+        question: event.question,
+        matchStatus: event.match.status,
+        status: liveScore?.status || "UPCOMING",
+        teamA: teamAData,
+        teamB: teamBData,
+        updatedAt: liveScore?.updatedAt || null,
+      },
+    });
+  } catch (err) {
+    console.error("Live score error:", err);
+    res.status(500).json({
+      status: false,
+      message: "Server error",
     });
   }
 };

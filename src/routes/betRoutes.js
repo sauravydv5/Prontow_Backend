@@ -18,6 +18,7 @@ import {
   getHistory,
   getMatchesUser,
   getEventsByMatch,
+  getEventWithLiveScore,
 } from "../controllers/tradingController.js";
 
 import protect, { adminOnly as admin } from "../middleware/authMiddleware.js";
@@ -58,6 +59,8 @@ router.get("/events/:eventId/orderbook", getOrderBook);
 // ✅ My orders for a specific event
 router.get("/events/:eventId/my-details", protect, getMyEventDetails);
 
+//Live Score
+router.get("/events/:eventId/live", getEventWithLiveScore);
 /* ======================================================
    ADMIN ROUTES
 ====================================================== */

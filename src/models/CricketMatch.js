@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
-const cricketMatchSchema = new mongoose.Schema({
+const cricketMatchSchema = new mongoose.Schema(
+  {
     apiMatchId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     matchType: { type: String, required: true },
@@ -8,18 +9,35 @@ const cricketMatchSchema = new mongoose.Schema({
     venue: { type: String },
     date: { type: Date, required: true },
     dateTimeGMT: { type: Date },
-    teams: [{ type: String }],
-    score: [{
+
+    // 🔥 REAL RELATION (IMPORTANT)
+    teamA: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      required: true,
+    },
+    teamB: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      required: true,
+    },
+
+    score: [
+      {
         r: Number,
         w: Number,
         o: Number,
-        inning: String
-    }],
+        inning: String,
+      },
+    ],
+
     tossWinner: String,
     tossChoice: String,
     matchWinner: String,
     hasSquad: Boolean,
-    lastUpdated: { type: Date, default: Date.now }
-}, { timestamps: true });
+    lastUpdated: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
 
 export default mongoose.model("CricketMatch", cricketMatchSchema);

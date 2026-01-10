@@ -1,9 +1,9 @@
 import CricketMatch from "../models/CricketMatch.js";
 
-//const API_KEY = "381e1578-0453-4fe2-880d-d7dd99303dc4";
 const API_KEY = "daf06269-b81c-4d17-9dab-21ee58c1baad";
 const BASE_URL = "https://api.cricapi.com/v1";
 
+// ✅ BULK FETCH (EXISTING – REQUIRED)
 export const fetchAndStoreMatches = async () => {
   try {
     const response = await fetch(
@@ -11,15 +11,9 @@ export const fetchAndStoreMatches = async () => {
     );
     const data = await response.json();
 
-    if (data.status !== "success") {
-      console.error("Failed to fetch matches:", data);
-      return;
-    }
+    if (data.status !== "success") return;
 
-    const matches = data.data;
-    console.log(`Fetched ${matches.length} matches.`);
-
-    for (const match of matches) {
+    for (const match of data.data) {
       await CricketMatch.findOneAndUpdate(
         { apiMatchId: match.id },
         {
@@ -40,15 +34,34 @@ export const fetchAndStoreMatches = async () => {
         { upsert: true, new: true }
       );
     }
-    // console.log("Matches updated in DB.");
-  } catch (error) {
-    //   console.error("Error in fetchAndStoreMatches:", error);
+  } catch (err) {
+    console.error("fetchAndStoreMatches error:", err.message);
   }
 };
 
-// Function to get specific match details (for real-time updates)
+// 🔥 REAL-TIME MATCH DETAIL (JO HUMNE ADD KIYA)
 export const getMatchDetails = async (matchId) => {
-  // In a real scenario, we might want to fetch fresh data for a specific match
-  // For now, we rely on the bulk fetch or existing DB data
-  return await CricketMatch.findById(matchId);
+  const existingMatch = await CricketMatch.findById(matchId);
+  if (!existingMatch) throw new Error("Match not found");
+
+  const response = await fetch(
+    `${BASE_URL}/match_info?apikey=${API_KEY}&id=${existingMatch.apiMatchId}`
+  );
+  const apiData = await response.json();
+
+  if (apiData.status !== "success") {
+    throw new Error("Live API fetch failed");
+  }
+
+  const liveMatch = apiData.data;
+
+  return await CricketMatch.findByIdAndUpdate(
+    matchId,
+    {
+      score: liveMatch.score,
+      status: liveMatch.status,
+      lastUpdated: new Date(),
+    },
+    { new: true }
+  );
 };
