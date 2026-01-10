@@ -30,12 +30,78 @@ export const settleEventUser = async (req, res) => {
   }
 };
 
+// export const getEvents = async (req, res) => {
+//   try {
+//     const { sort } = req.query;
+
+//     let sortOptions = {};
+
+//     if (sort === "recently_added") {
+//       sortOptions = { createdAt: -1 };
+//     }
+//     else if (sort === "best_price") {
+//       sortOptions = { currentYesPrice: 1 };
+//     }
+//     else if (sort === "trending" || sort === "relevance") {
+//       sortOptions = {
+//         totalYesVolume: -1,
+//         totalNoVolume: -1,
+//         updatedAt: -1,
+//       };
+//     }
+//     else {
+//       // default
+//       sortOptions = { createdAt: -1 };
+//     }
+
+//     const events = await BetEvent.find({ status: "OPEN" })
+//       .populate("match")
+//       .sort(sortOptions);
+
+//     res.status(200).json(
+//       responseHandler.success(
+//         events,
+//         `Events retrieved successfully (${sort || "default"})`
+//       )
+//     );
+//   } catch (error) {
+//     res.status(500).json(responseHandler.error(error.message));
+//   }
+// };
+
 export const getEvents = async (req, res) => {
   try {
-    const events = await BetEvent.find({ status: "OPEN" }).populate("match");
+    const { sort } = req.query;
+
+    let sortOptions = {};
+
+    if (sort === "recently_added") {
+      sortOptions = { createdAt: -1 };
+    } else if (sort === "best_price") {
+      sortOptions = { currentYesPrice: 1 };
+    } else if (sort === "trending" || sort === "relevance") {
+      sortOptions = {
+        totalYesVolume: -1,
+        totalNoVolume: -1,
+        updatedAt: -1,
+      };
+    } else {
+      // default
+      sortOptions = { createdAt: -1 };
+    }
+
+    const events = await BetEvent.find({ status: "OPEN" })
+      .populate("match")
+      .sort(sortOptions);
+
     res
       .status(200)
-      .json(responseHandler.success(events, "Events retrieved successfully"));
+      .json(
+        responseHandler.success(
+          events,
+          `Events retrieved successfully (${sort || "default"})`
+        )
+      );
   } catch (error) {
     res.status(500).json(responseHandler.error(error.message));
   }
@@ -287,37 +353,89 @@ export const getOrderBook = async (req, res) => {
 };
 
 //Get My Event Details
+
 export const getMyEventDetails = async (req, res) => {
   try {
     const { eventId } = req.params;
     const { status } = req.query; // matched | unmatched | all
     const userId = req.user._id;
 
-    const query = {
+    /* ===============================
+       1️⃣ FETCH USER ORDERS
+       =============================== */
+    const orderQuery = {
       user: userId,
       event: eventId,
     };
 
-    if (status === "unmatched") {
-      query.status = "PENDING";
-    } else if (status === "matched") {
-      query.status = "MATCHED";
-    }
+    if (status === "unmatched") orderQuery.status = "PENDING";
+    if (status === "matched") orderQuery.status = "MATCHED";
 
-    const orders = await BetOrder.find(query).sort({ createdAt: -1 });
+    const orders = await BetOrder.find(orderQuery).sort({ createdAt: -1 });
 
-    const position = await BetPosition.findOne({
+    /* ===============================
+       2️⃣ FETCH USER POSITIONS
+       =============================== */
+    const positions = await BetPosition.find({
       user: userId,
       event: eventId,
     });
 
+    /* ===============================
+       3️⃣ BUILD INVESTMENT SUMMARY
+       =============================== */
+    const investment = {
+      yes: {
+        quantity: 0,
+        invested: 0,
+        potentialReturns: 0,
+        averagePrice: 0,
+      },
+      no: {
+        quantity: 0,
+        invested: 0,
+        potentialReturns: 0,
+        averagePrice: 0,
+      },
+      totalInvested: 0,
+      totalPotentialReturns: 0,
+    };
+
+    positions.forEach((pos) => {
+      const sideKey = pos.side.toLowerCase(); // yes / no
+
+      investment[sideKey].quantity = pos.quantity;
+      investment[sideKey].invested = pos.investedAmount;
+      investment[sideKey].averagePrice = pos.averagePrice;
+
+      const potential = pos.quantity * 10;
+      investment[sideKey].potentialReturns = potential;
+
+      investment.totalInvested += pos.investedAmount;
+      investment.totalPotentialReturns += potential;
+    });
+
+    /* ===============================
+       4️⃣ SELL LISTING (OPPOSITE ORDERS)
+       =============================== */
+    const sellListing = await BetOrder.find({
+      event: eventId,
+      type: "SELL",
+      status: "PENDING",
+      user: { $ne: userId },
+    }).sort({ price: 1 });
+
+    /* ===============================
+       5️⃣ FINAL RESPONSE
+       =============================== */
     res.status(200).json({
       status: true,
       data: {
+        investment,
+        sellListing,
         orders,
-        position,
       },
-      message: "My event details fetched successfully",
+      message: "User event details retrieved",
     });
   } catch (error) {
     res.status(500).json({
