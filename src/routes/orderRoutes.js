@@ -1,42 +1,52 @@
 import express from "express";
-import { 
-  createOrder, 
-  getUserOrders, 
-  getOrderById, 
+import {
+  createOrder,
+  getUserOrders,
+  getOrderById,
   getAllOrdersForAdmin,
   verifyPayment,
   razorpayWebhook,
   getOrderHistory,
   getOrderTracking,
   cancelOrder,
-  updateOrderStatus
+  updateOrderStatus,
 } from "../controllers/orderController.js";
-import protect, { adminOnly } from "../middleware/authMiddleware.js"; 
+
+import {
+  myCurrentMatch,
+  myCurrentMatchEvents,
+  myCurrentMatchDetail,
+} from "../controllers/myCurrentMatchcontroller.js";
+
+import protect, { adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Webhook route (no authentication required - called by Razorpay)
-// Note: This route is registered in main app with express.raw() middleware
-// The body will be a Buffer, we'll parse it in the controller
+/* ===================== WEBHOOK ===================== */
 router.post("/webhook/razorpay", razorpayWebhook);
 
-// Create order
+/* ===================== CREATE / PAYMENT ===================== */
 router.post("/", protect, createOrder);
-
-// Verify payment
 router.post("/verify-payment", protect, verifyPayment);
 
-// Admin routes must come first (static paths)
+/* ===================== ADMIN ===================== */
 router.get("/admin", protect, adminOnly, getAllOrdersForAdmin);
 router.put("/admin/:id/status", protect, adminOnly, updateOrderStatus);
 
-// Order history and tracking routes (must come before /:id)
+/* ===================== MY CURRENT MATCH ===================== */
+router.get("/my-current-match", protect, myCurrentMatch);
+
+router.get("/my-current-match/:matchId/events", protect, myCurrentMatchEvents);
+
+router.get("/my-current-match/:eventId", protect, myCurrentMatchDetail);
+
+/* ===================== HISTORY / TRACKING ===================== */
 router.get("/history", protect, getOrderHistory);
 router.get("/tracking/:id", protect, getOrderTracking);
 
-// User routes
+/* ===================== USER ===================== */
 router.get("/", protect, getUserOrders);
 router.post("/:id/cancel", protect, cancelOrder);
-router.get("/:id", protect, getOrderById); // dynamic route comes last
+router.get("/:id", protect, getOrderById);
 
 export default router;

@@ -30,45 +30,6 @@ export const settleEventUser = async (req, res) => {
   }
 };
 
-// export const getEvents = async (req, res) => {
-//   try {
-//     const { sort } = req.query;
-
-//     let sortOptions = {};
-
-//     if (sort === "recently_added") {
-//       sortOptions = { createdAt: -1 };
-//     }
-//     else if (sort === "best_price") {
-//       sortOptions = { currentYesPrice: 1 };
-//     }
-//     else if (sort === "trending" || sort === "relevance") {
-//       sortOptions = {
-//         totalYesVolume: -1,
-//         totalNoVolume: -1,
-//         updatedAt: -1,
-//       };
-//     }
-//     else {
-//       // default
-//       sortOptions = { createdAt: -1 };
-//     }
-
-//     const events = await BetEvent.find({ status: "OPEN" })
-//       .populate("match")
-//       .sort(sortOptions);
-
-//     res.status(200).json(
-//       responseHandler.success(
-//         events,
-//         `Events retrieved successfully (${sort || "default"})`
-//       )
-//     );
-//   } catch (error) {
-//     res.status(500).json(responseHandler.error(error.message));
-//   }
-// };
-
 export const getEvents = async (req, res) => {
   try {
     const { sort } = req.query;
@@ -127,23 +88,6 @@ export const placeOrder = async (req, res) => {
     res.status(400).json(responseHandler.error(error.message));
   }
 };
-
-// export const getPortfolio = async (req, res) => {
-//   try {
-//     const userId = req.user._id;
-//     const positions = await BetPosition.find({
-//       user: userId,
-//       quantity: { $gt: 0 },
-//     }).populate("event");
-//     res
-//       .status(200)
-//       .json(
-//         responseHandler.success(positions, "Portfolio retrieved successfully")
-//       );
-//   } catch (error) {
-//     res.status(500).json(responseHandler.error(error.message));
-//   }
-// };
 
 export const getPortfolio = async (req, res) => {
   try {
@@ -275,8 +219,8 @@ export const getEventsByMatch = async (req, res) => {
     res.status(500).json(responseHandler.error(error.message));
   }
 };
-//get eventdetail controller
 
+//get eventdetail controller
 export const getEventDetails = async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -445,7 +389,6 @@ export const getMyEventDetails = async (req, res) => {
 };
 
 // Live score Api
-
 export const getEventWithLiveScore = async (req, res) => {
   try {
     const { eventId } = req.params;
