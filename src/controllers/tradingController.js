@@ -220,7 +220,7 @@ export const getEventsByMatch = async (req, res) => {
   }
 };
 
-//get eventdetail controller
+//get event detail controller
 export const getEventDetails = async (req, res) => {
   try {
     const { eventId } = req.params;

@@ -12,11 +12,7 @@ import {
   updateOrderStatus,
 } from "../controllers/orderController.js";
 
-import {
-  myCurrentMatch,
-  myCurrentMatchEvents,
-  myCurrentMatchDetail,
-} from "../controllers/myCurrentMatchcontroller.js";
+import { myCurrentMatch } from "../controllers/myCurrentMatchcontroller.js";
 
 import protect, { adminOnly } from "../middleware/authMiddleware.js";
 
@@ -35,10 +31,6 @@ router.put("/admin/:id/status", protect, adminOnly, updateOrderStatus);
 
 /* ===================== MY CURRENT MATCH ===================== */
 router.get("/my-current-match", protect, myCurrentMatch);
-
-router.get("/my-current-match/:matchId/events", protect, myCurrentMatchEvents);
-
-router.get("/my-current-match/:eventId", protect, myCurrentMatchDetail);
 
 /* ===================== HISTORY / TRACKING ===================== */
 router.get("/history", protect, getOrderHistory);
