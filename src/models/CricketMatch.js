@@ -1,25 +1,29 @@
+// models/CricketMatch.js
 import mongoose from "mongoose";
 
 const cricketMatchSchema = new mongoose.Schema(
   {
     apiMatchId: { type: String, required: true, unique: true },
+
     name: { type: String, required: true },
-    matchType: { type: String, required: true },
-    status: { type: String, required: true },
+    matchType: { type: String },
+    status: { type: String },
+
     venue: { type: String },
-    date: { type: Date, required: true },
+
+    date: { type: Date },
     dateTimeGMT: { type: Date },
 
-    // 🔥 REAL RELATION (IMPORTANT)
+    // ❌ required hata diya (VERY IMPORTANT)
     teamA: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
-      required: true,
+      required: false,
     },
     teamB: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
-      required: true,
+      required: false,
     },
 
     score: [
@@ -35,6 +39,7 @@ const cricketMatchSchema = new mongoose.Schema(
     tossChoice: String,
     matchWinner: String,
     hasSquad: Boolean,
+
     lastUpdated: { type: Date, default: Date.now },
   },
   { timestamps: true }

@@ -184,27 +184,31 @@ export const getHistory = async (req, res) => {
 export const getMatchesUser = async (req, res) => {
   try {
     const { filter } = req.query;
+    const now = new Date();
+
     let query = {};
 
     if (filter === "live") {
-      // Matches that are currently running
-      query = { status: { $regex: /live|in progress|started|running/i } };
-    } else if (filter === "upcoming") {
-      // Matches that are scheduled or in the future
       query = {
-        $or: [
-          { status: { $regex: /scheduled|upcoming/i } },
-          { date: { $gt: new Date() } },
-        ],
+        status: { $regex: /live|in progress/i },
       };
     }
 
-    const matches = await CricketMatch.find(query).sort({ date: 1 });
-    res
+    if (filter === "upcoming") {
+      query = {
+        dateTimeGMT: { $gte: now },
+      };
+    }
+
+    const matches = await CricketMatch.find(query).sort({
+      dateTimeGMT: 1,
+    });
+
+    return res
       .status(200)
       .json(responseHandler.success(matches, "Matches retrieved successfully"));
   } catch (error) {
-    res.status(500).json(responseHandler.error(error.message));
+    return res.status(500).json(responseHandler.error(error.message));
   }
 };
 
