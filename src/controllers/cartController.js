@@ -16,7 +16,9 @@ export const addToCart = async (req, res) => {
       return res.status(404).json(responseHandler.error("Product not found"));
 
     if (product.stock < 1)
-      return res.status(400).json(responseHandler.error("Product out of stock"));
+      return res
+        .status(400)
+        .json(responseHandler.error("Product out of stock"));
 
     let cart = await Cart.findOne({ user: userId });
 
@@ -59,14 +61,14 @@ export const getCart = async (req, res) => {
 
     const results = await Cart.aggregate([
       {
-        $match: { user: new mongoose.Types.ObjectId(userId) }
+        $match: { user: new mongoose.Types.ObjectId(userId) },
       },
 
       {
         $unwind: {
           path: "$items",
-          preserveNullAndEmptyArrays: true
-        }
+          preserveNullAndEmptyArrays: true,
+        },
       },
 
       {
@@ -74,14 +76,14 @@ export const getCart = async (req, res) => {
           from: "products",
           localField: "items.product",
           foreignField: "_id",
-          as: "product"
-        }
+          as: "product",
+        },
       },
 
       {
         $addFields: {
-          "items.product": { $arrayElemAt: ["$product", 0] }
-        }
+          "items.product": { $arrayElemAt: ["$product", 0] },
+        },
       },
 
       {
@@ -89,14 +91,14 @@ export const getCart = async (req, res) => {
           from: "addresses",
           localField: "selectedAddress",
           foreignField: "_id",
-          as: "selectedAddress"
-        }
+          as: "selectedAddress",
+        },
       },
 
       {
         $addFields: {
-          selectedAddress: { $arrayElemAt: ["$selectedAddress", 0] }
-        }
+          selectedAddress: { $arrayElemAt: ["$selectedAddress", 0] },
+        },
       },
 
       {
@@ -106,18 +108,18 @@ export const getCart = async (req, res) => {
           items: { $push: "$items" },
           selectedAddress: { $first: "$selectedAddress" },
           createdAt: { $first: "$createdAt" },
-          updatedAt: { $first: "$updatedAt" }
-        }
-      }
+          updatedAt: { $first: "$updatedAt" },
+        },
+      },
     ]);
 
     let cart = null;
-    if (!results.length)
-      cart = await getDefaultUserCart(userId);
-    else
-      cart = results[0];
+    if (!results.length) cart = await getDefaultUserCart(userId);
+    else cart = results[0];
 
-    return res.json(responseHandler.success(cart, "Cart retrieved successfully"));
+    return res.json(
+      responseHandler.success(cart, "Cart retrieved successfully")
+    );
   } catch (err) {
     return res.status(500).json(responseHandler.error(err.message));
   }
@@ -154,7 +156,6 @@ export const incrementItem = async (req, res) => {
     return res.status(500).json(responseHandler.error(err.message));
   }
 };
-
 
 // ➖ Decrement cart item
 export const decrementItem = async (req, res) => {
@@ -213,7 +214,9 @@ export const removeItem = async (req, res) => {
     }
 
     await cart.save();
-    const populatedCart = await cart.populate("items.product").populate("selectedAddress");
+    const populatedCart = await cart
+      .populate("items.product")
+      .populate("selectedAddress");
     return res.json(
       responseHandler.success(populatedCart, "Item removed from cart")
     );
@@ -241,9 +244,7 @@ export const clearCart = async (req, res) => {
       await cart.save();
     }
 
-    return res.json(
-      responseHandler.success(cart, "Cart cleared successfully")
-    );
+    return res.json(responseHandler.success(cart, "Cart cleared successfully"));
   } catch (err) {
     return res.status(500).json(responseHandler.error(err.message));
   }
@@ -259,21 +260,92 @@ export const selectAddress = async (req, res) => {
     if (!cart)
       return res.status(404).json(responseHandler.error("Cart not found"));
 
+    await Cart.updateOne(
+      { user: userId },
+      { $set: { selectedAddress: addressId } }
+    );
 
-    await Cart.updateOne({ user: userId }, { $set: { selectedAddress: addressId } });
-
-    return res.status(200).json(responseHandler.success(cart, "Address selected for cart"));
+    return res
+      .status(200)
+      .json(responseHandler.success(cart, "Address selected for cart"));
   } catch (err) {
     return res.status(500).json(responseHandler.error(err.message));
   }
 };
 
 const getDefaultUserCart = async (userId) => {
-  const defaultAddress = await Address.findOne({ user: userId, isDefault: true, deletedAt: null });
+  const defaultAddress = await Address.findOne({
+    user: userId,
+    isDefault: true,
+    deletedAt: null,
+  });
 
   return Cart.create({
     user: userId,
     items: [],
-    selectedAddress: defaultAddress ? defaultAddress._id : null
-  })
-}
+    selectedAddress: defaultAddress ? defaultAddress._id : null,
+  });
+};
+
+// export const deleteSingleCartItem = async (req, res) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const userId = req.user.id;
+//     const { itemId } = req.params;
+
+//     // ✅ ObjectId validation
+//     if (!mongoose.Types.ObjectId.isValid(itemId)) {
+//       return res
+//         .status(400)
+//         .json(responseHandler.error("Invalid cart item id"));
+//     }
+
+//     const cart = await Cart.findOne({ user: userId })
+//       .populate("items.product")
+//       .session(session);
+
+//     if (!cart)
+//       return res.status(404).json(responseHandler.error("Cart not found"));
+
+//     const item = cart.items.id(itemId);
+//     if (!item)
+//       return res.status(404).json(responseHandler.error("Item not found"));
+
+//     const productId = item.product._id;
+//     const quantity = item.quantity;
+
+//     // 🔁 Stock restore (atomic inside transaction)
+//     const productUpdate = await Product.findOneAndUpdate(
+//       { _id: productId },
+//       { $inc: { stock: quantity } },
+//       { session, new: true }
+//     );
+
+//     if (!productUpdate) {
+//       throw new Error("Failed to restore product stock");
+//     }
+
+//     // 🗑️ Remove item
+//     item.deleteOne();
+
+//     await cart.save({ session });
+
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     const updatedCart = await Cart.findOne({ user: userId })
+//       .populate("items.product")
+//       .populate("selectedAddress");
+
+//     return res.json(
+//       responseHandler.success(updatedCart, "Product removed from cart")
+//     );
+//   } catch (err) {
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     return res.status(500).json(responseHandler.error(err.message));
+//   }
+// };

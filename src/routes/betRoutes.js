@@ -1,6 +1,7 @@
 import express from "express";
 import {
   refreshMatches,
+  addMatches,
   getMatches,
   createEvent,
   settleEvent,
@@ -67,6 +68,8 @@ router.get("/events/:eventId/live", getEventWithLiveScore);
 
 // Refresh matches from API
 router.post("/admin/refresh-matches", protect, admin, refreshMatches);
+
+router.post("/admin/add-matches", addMatches);
 
 // Admin match list
 router.get("/admin/matches", protect, admin, getMatches);

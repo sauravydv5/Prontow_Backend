@@ -8,16 +8,10 @@ const BASE_URL = "https://api.cricapi.com/v1";
 ===================================================== */
 export const fetchAndStoreMatches = async () => {
   try {
-    console.log("🔵 CricAPI call start ho rahi hai...");
-
     const response = await fetch(
       `${BASE_URL}/currentMatches?apikey=${API_KEY}&offset=0`
     );
-
     const data = await response.json();
-
-    console.log("🟢 API Status:", data.status);
-    console.log("🟢 Total Matches from API:", data.data?.length);
 
     if (data.status !== "success") return [];
 
@@ -28,27 +22,18 @@ export const fetchAndStoreMatches = async () => {
         { apiMatchId: match.id },
         {
           apiMatchId: match.id,
-          name: match.name,
+          name:
+            match.name ||
+            `${match.teamInfo?.[0]?.name} vs ${match.teamInfo?.[1]?.name}`,
           matchType: match.matchType,
           status: match.status,
-          venue: match.venue,
-
-          date: match.date ? new Date(match.date) : null,
+          venue: match.venue || "",
           dateTimeGMT: match.dateTimeGMT ? new Date(match.dateTimeGMT) : null,
-
-          score: match.score || [],
-          tossWinner: match.tossWinner,
-          tossChoice: match.tossChoice,
-          matchWinner: match.matchWinner,
-          hasSquad: match.hasSquad,
-
+          teams: match.teamInfo || [],
+          isLive: match.ms === "live",
           lastUpdated: new Date(),
         },
-        {
-          upsert: true,
-          new: true,
-          runValidators: true,
-        }
+        { upsert: true, new: true }
       );
 
       savedMatches.push(saved);
@@ -56,7 +41,7 @@ export const fetchAndStoreMatches = async () => {
 
     return savedMatches;
   } catch (err) {
-    console.error("❌ fetchAndStoreMatches error:", err.message);
+    console.error("❌ fetchAndStoreMatches:", err.message);
     return [];
   }
 };

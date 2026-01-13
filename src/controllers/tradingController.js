@@ -34,37 +34,84 @@ export const getEvents = async (req, res) => {
   try {
     const { sort } = req.query;
 
+    // 🔁 SORT LOGIC (filter)
     let sortOptions = {};
-
     if (sort === "recently_added") {
       sortOptions = { createdAt: -1 };
     } else if (sort === "best_price") {
       sortOptions = { currentYesPrice: 1 };
     } else if (sort === "trending" || sort === "relevance") {
       sortOptions = {
-        totalYesVolume: -1,
-        totalNoVolume: -1,
+        totalTrades: -1, // 🔥 traders ke basis pe trending
         updatedAt: -1,
       };
     } else {
-      // default
       sortOptions = { createdAt: -1 };
     }
 
-    const events = await BetEvent.find({ status: "OPEN" })
-      .populate("match")
-      .sort(sortOptions);
+    // 🔥 AGGREGATION (always calculate trades)
+    const events = await BetEvent.aggregate([
+      { $match: { status: "OPEN" } },
 
-    res
-      .status(200)
-      .json(
-        responseHandler.success(
-          events,
-          `Events retrieved successfully (${sort || "default"})`
-        )
-      );
-  } catch (error) {
-    res.status(500).json(responseHandler.error(error.message));
+      {
+        $lookup: {
+          from: "betorders",
+          localField: "_id",
+          foreignField: "event",
+          as: "orders",
+        },
+      },
+
+      {
+        $addFields: {
+          totalTrades: {
+            $size: {
+              $filter: {
+                input: "$orders",
+                as: "o",
+                cond: {
+                  $in: ["$$o.status", ["PENDING", "MATCHED"]],
+                },
+              },
+            },
+          },
+          totalTraders: {
+            $size: {
+              $setUnion: [
+                {
+                  $map: {
+                    input: {
+                      $filter: {
+                        input: "$orders",
+                        as: "o",
+                        cond: {
+                          $in: ["$$o.status", ["PENDING", "MATCHED"]],
+                        },
+                      },
+                    },
+                    as: "o",
+                    in: "$$o.user",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+
+      { $project: { orders: 0 } },
+
+      // 🎯 SORT APPLY HOTA HAI YAHA
+      { $sort: sortOptions },
+    ]);
+
+    res.status(200).json({
+      status: true,
+      data: events,
+      message: "Events with trade count",
+    });
+  } catch (err) {
+    res.status(500).json({ status: false, message: err.message });
   }
 };
 
@@ -160,22 +207,62 @@ export const getPortfolio = async (req, res) => {
       .json(responseHandler.error("Failed to fetch portfolio"));
   }
 };
+// export const getHistory = async (req, res) => {
+//   try {
+//     const userId = req.user._id;
+//     // Fetch positions where the event is settled OR quantity is 0 (if we handled exits that way)
+//     // Better: Fetch all positions and let frontend filter, or filter by event status.
+//     // Since BetPosition doesn't store event status directly, we populate and filter.
+
+//     const positions = await BetPosition.find({ user: userId }).populate(
+//       "event"
+//     );
+
+//     const history = positions.filter((pos) => pos.event.status === "SETTLED");
+
+//     res
+//       .status(200)
+//       .json(responseHandler.success(history, "History retrieved successfully"));
+//   } catch (error) {
+//     res.status(500).json(responseHandler.error(error.message));
+//   }
+// };
+
 export const getHistory = async (req, res) => {
   try {
     const userId = req.user._id;
-    // Fetch positions where the event is settled OR quantity is 0 (if we handled exits that way)
-    // Better: Fetch all positions and let frontend filter, or filter by event status.
-    // Since BetPosition doesn't store event status directly, we populate and filter.
 
-    const positions = await BetPosition.find({ user: userId }).populate(
-      "event"
-    );
+    const positions = await BetPosition.find({ user: userId })
+      .populate({
+        path: "event",
+        select: "name status startTime endTime",
+      })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const history = positions.filter((pos) => pos.event.status === "SETTLED");
+    // 🧠 Normalize + null safety
+    const history = positions.map((pos) => {
+      const event = pos.event || {};
+
+      const positionStatus =
+        pos.type === "SELL" || pos.quantity === 0 ? "SOLD" : "OPEN";
+
+      return {
+        ...pos,
+        event: event,
+        // eventStatus: event.status || "UNKNOWN",
+        positionStatus,
+      };
+    });
 
     res
       .status(200)
-      .json(responseHandler.success(history, "History retrieved successfully"));
+      .json(
+        responseHandler.success(
+          history,
+          "All events history retrieved successfully"
+        )
+      );
   } catch (error) {
     res.status(500).json(responseHandler.error(error.message));
   }
@@ -190,25 +277,37 @@ export const getMatchesUser = async (req, res) => {
 
     if (filter === "live") {
       query = {
-        status: { $regex: /live|in progress/i },
+        dateTimeGMT: { $lte: now },
+        status: { $not: /completed|finished/i },
       };
     }
 
     if (filter === "upcoming") {
       query = {
-        dateTimeGMT: { $gte: now },
+        dateTimeGMT: { $gt: now },
       };
     }
 
-    const matches = await CricketMatch.find(query).sort({
-      dateTimeGMT: 1,
-    });
+    if (filter === "completed") {
+      query = {
+        status: { $regex: /completed|finished/i },
+      };
+    }
 
-    return res
-      .status(200)
-      .json(responseHandler.success(matches, "Matches retrieved successfully"));
+    const matches = await CricketMatch.find(query)
+      .populate("teamA teamB")
+      .sort({ dateTimeGMT: 1 });
+
+    return res.status(200).json({
+      status: true,
+      data: matches,
+      message: "Matches retrieved successfully",
+    });
   } catch (error) {
-    return res.status(500).json(responseHandler.error(error.message));
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
   }
 };
 
@@ -301,90 +400,137 @@ export const getOrderBook = async (req, res) => {
 };
 
 //Get My Event Details
+import mongoose from "mongoose";
+
 export const getMyEventDetails = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { status } = req.query; // matched | unmatched | all
+    const { filter = "all" } = req.query;
+    // filter = all | unmatched | matched | sold | cancelled
+
     const userId = req.user._id;
+
+    // 🔐 Handle ObjectId safely
+    const eventQuery = mongoose.Types.ObjectId.isValid(eventId)
+      ? new mongoose.Types.ObjectId(eventId)
+      : eventId;
 
     /* ===============================
        1️⃣ FETCH USER ORDERS
        =============================== */
-    const orderQuery = {
+    const orders = await BetOrder.find({
       user: userId,
-      event: eventId,
-    };
-
-    if (status === "unmatched") orderQuery.status = "PENDING";
-    if (status === "matched") orderQuery.status = "MATCHED";
-
-    const orders = await BetOrder.find(orderQuery).sort({ createdAt: -1 });
+      event: eventQuery,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
     /* ===============================
        2️⃣ FETCH USER POSITIONS
        =============================== */
     const positions = await BetPosition.find({
       user: userId,
-      event: eventId,
+      event: eventQuery,
+    }).lean();
+
+    // Map positions by side
+    const positionMap = {};
+    positions.forEach((p) => {
+      positionMap[p.side] = p;
     });
 
     /* ===============================
-       3️⃣ BUILD INVESTMENT SUMMARY
+       3️⃣ CLASSIFY ORDERS
+       =============================== */
+    const unmatched = [];
+    const matched = [];
+    const sold = [];
+    const cancelled = [];
+
+    orders.forEach((order) => {
+      if (order.status === "PENDING") {
+        unmatched.push(order);
+        return;
+      }
+
+      if (order.status === "MATCHED") {
+        const pos = positionMap[order.side];
+        if (!pos || pos.quantity > 0) matched.push(order);
+        else sold.push(order);
+        return;
+      }
+
+      if (order.status === "CANCELLED") {
+        cancelled.push(order);
+      }
+    });
+
+    /* ===============================
+       4️⃣ INVESTMENT SUMMARY
        =============================== */
     const investment = {
-      yes: {
-        quantity: 0,
-        invested: 0,
-        potentialReturns: 0,
-        averagePrice: 0,
-      },
-      no: {
-        quantity: 0,
-        invested: 0,
-        potentialReturns: 0,
-        averagePrice: 0,
-      },
+      yes: { quantity: 0, invested: 0, avgPrice: 0 },
+      no: { quantity: 0, invested: 0, avgPrice: 0 },
       totalInvested: 0,
-      totalPotentialReturns: 0,
+      cancelledAmount: 0, // 🔥 NEW
     };
 
+    // Active investment (positions)
     positions.forEach((pos) => {
-      const sideKey = pos.side.toLowerCase(); // yes / no
-
-      investment[sideKey].quantity = pos.quantity;
-      investment[sideKey].invested = pos.investedAmount;
-      investment[sideKey].averagePrice = pos.averagePrice;
-
-      const potential = pos.quantity * 10;
-      investment[sideKey].potentialReturns = potential;
-
+      const key = pos.side.toLowerCase();
+      investment[key].quantity = pos.quantity;
+      investment[key].invested = pos.investedAmount;
+      investment[key].avgPrice = pos.averagePrice;
       investment.totalInvested += pos.investedAmount;
-      investment.totalPotentialReturns += potential;
+    });
+
+    // Cancelled investment (orders)
+    cancelled.forEach((order) => {
+      investment.cancelledAmount += order.amountLocked || 0;
     });
 
     /* ===============================
-       4️⃣ SELL LISTING (OPPOSITE ORDERS)
+       5️⃣ SELL LISTING (OTHER USERS)
        =============================== */
     const sellListing = await BetOrder.find({
-      event: eventId,
+      event: eventQuery,
       type: "SELL",
       status: "PENDING",
       user: { $ne: userId },
-    }).sort({ price: 1 });
+    })
+      .sort({ price: 1 })
+      .lean();
 
     /* ===============================
-       5️⃣ FINAL RESPONSE
+       6️⃣ APPLY FILTER (IMPORTANT)
+       =============================== */
+    const filteredData = {
+      investment,
+      sellListing,
+    };
+
+    if (filter === "unmatched") filteredData.unmatched = unmatched;
+    else if (filter === "matched") filteredData.matched = matched;
+    else if (filter === "sold") filteredData.sold = sold;
+    else if (filter === "cancelled") filteredData.cancelled = cancelled;
+    else {
+      // all
+      filteredData.unmatched = unmatched;
+      filteredData.matched = matched;
+      filteredData.sold = sold;
+      filteredData.cancelled = cancelled;
+    }
+
+    /* ===============================
+       7️⃣ RESPONSE
        =============================== */
     res.status(200).json({
       status: true,
-      data: {
-        investment,
-        sellListing,
-        orders,
-      },
+      data: filteredData,
       message: "User event details retrieved",
     });
   } catch (error) {
+    console.error("getMyEventDetails ERROR:", error);
     res.status(500).json({
       status: false,
       message: error.message,

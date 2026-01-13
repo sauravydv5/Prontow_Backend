@@ -105,6 +105,18 @@ const socketExports = {
   },
 };
 
+let ioInstance;
+
+export const initSocket = (io) => {
+  ioInstance = io;
+};
+
+export const emitLiveScoreUpdate = (data) => {
+  if (!ioInstance) return;
+
+  ioInstance.emit("LIVE_SCORE_UPDATE", data);
+};
+
 export const {
   initializeSocket,
   getIO,

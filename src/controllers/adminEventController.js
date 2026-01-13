@@ -24,30 +24,61 @@ export const refreshMatches = async (req, res) => {
 };
 
 /* =====================================================
+   📋 ADD STATIC MATCHES API
+===================================================== */
+export const addMatches = async (req, res) => {
+  try {
+    const matches = req.body;
+
+    // 🛑 Validation
+    if (!Array.isArray(matches) || matches.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please send matches as an array",
+      });
+    }
+
+    const bulkOps = matches.map((match) => {
+      if (!match.apiMatchId || !match.name) {
+        throw new Error("apiMatchId and name are required");
+      }
+
+      return {
+        updateOne: {
+          filter: { apiMatchId: match.apiMatchId },
+          update: { $set: match },
+          upsert: true,
+        },
+      };
+    });
+
+    await CricketMatch.bulkWrite(bulkOps);
+
+    res.status(201).json({
+      success: true,
+      message: "Matches added/updated successfully",
+      count: matches.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/* =====================================================
    📋 GET MATCHES (LIVE + UPCOMING ONLY)
 ===================================================== */
+
 export const getMatches = async (req, res) => {
   try {
-    const now = new Date();
-
-    // 🔥 5 din ka window (GMT-safe)
+    // 🔥 aaj + kal + next 3 din
     const endDate = new Date();
     endDate.setUTCDate(endDate.getUTCDate() + 5);
-    endDate.setUTCHours(23, 59, 59, 999);
 
     const matches = await CricketMatch.find({
-      $or: [
-        // ✅ LIVE always
-        { ms: "live" },
-
-        // ✅ UPCOMING (next 5 days)
-        {
-          ms: "fixture",
-          dateTimeGMT: {
-            $lte: endDate,
-          },
-        },
-      ],
+      dateTimeGMT: { $lte: endDate },
     }).sort({ dateTimeGMT: 1 });
 
     res.status(200).json({

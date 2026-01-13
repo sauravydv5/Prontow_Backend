@@ -1,30 +1,19 @@
+// models/LiveScore.js
 import mongoose from "mongoose";
 
-const liveScoreSchema = new mongoose.Schema({
-  eventId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Event",
-    unique: true,
+const liveScoreSchema = new mongoose.Schema(
+  {
+    matchId: { type: String, unique: true },
+    team1: String,
+    team2: String,
+    team1Score: String,
+    team2Score: String,
+    status: String, // fixture | live | result
+    statusText: String, // "Match starts at..."
+    series: String,
+    lastUpdated: Date,
   },
-  teamA: {
-    runs: Number,
-    wickets: Number,
-    overs: Number,
-  },
-  teamB: {
-    runs: Number,
-    wickets: Number,
-    overs: Number,
-  },
-  status: {
-    type: String,
-    enum: ["UPCOMING", "LIVE", "COMPLETED"],
-    default: "UPCOMING",
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  { timestamps: true }
+);
 
 export default mongoose.model("LiveScore", liveScoreSchema);

@@ -1,4 +1,3 @@
-// models/CricketMatch.js
 import mongoose from "mongoose";
 
 const cricketMatchSchema = new mongoose.Schema(
@@ -14,7 +13,6 @@ const cricketMatchSchema = new mongoose.Schema(
     date: { type: Date },
     dateTimeGMT: { type: Date },
 
-    // ❌ required hata diya (VERY IMPORTANT)
     teamA: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
