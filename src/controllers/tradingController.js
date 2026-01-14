@@ -32,27 +32,56 @@ export const settleEventUser = async (req, res) => {
 
 export const getEvents = async (req, res) => {
   try {
-    const { sort } = req.query;
+    const { sort, matchId } = req.query;
 
-    // 🔁 SORT LOGIC (filter)
+    /* ================================
+       🔁 SORT LOGIC
+    ================================= */
     let sortOptions = {};
+
     if (sort === "recently_added") {
       sortOptions = { createdAt: -1 };
     } else if (sort === "best_price") {
       sortOptions = { currentYesPrice: 1 };
     } else if (sort === "trending" || sort === "relevance") {
-      sortOptions = {
-        totalTrades: -1, // 🔥 traders ke basis pe trending
-        updatedAt: -1,
-      };
+      sortOptions = { totalTrades: -1, updatedAt: -1 };
     } else {
       sortOptions = { createdAt: -1 };
     }
 
-    // 🔥 AGGREGATION (always calculate trades)
-    const events = await BetEvent.aggregate([
-      { $match: { status: "OPEN" } },
+    /* ================================
+       🎯 MATCH FILTER (TEMPORARY)
+    ================================= */
+    let matchFilter = { status: "OPEN" };
 
+    if (matchId) {
+      matchFilter.match = new mongoose.Types.ObjectId(matchId);
+    }
+
+    /* ================================
+       🎯 AGGREGATION
+    ================================= */
+    const events = await BetEvent.aggregate([
+      { $match: matchFilter },
+
+      /* 🔗 MATCH LOOKUP (CricketMatch) */
+      {
+        $lookup: {
+          from: "cricketmatches", // 🔥 correct collection
+          localField: "match",
+          foreignField: "_id",
+          as: "matchInfo",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$matchInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      /* 🔗 ORDERS LOOKUP */
       {
         $lookup: {
           from: "betorders",
@@ -62,6 +91,7 @@ export const getEvents = async (req, res) => {
         },
       },
 
+      /* 📊 CALCULATIONS + MATCH NAME */
       {
         $addFields: {
           totalTrades: {
@@ -69,12 +99,11 @@ export const getEvents = async (req, res) => {
               $filter: {
                 input: "$orders",
                 as: "o",
-                cond: {
-                  $in: ["$$o.status", ["PENDING", "MATCHED"]],
-                },
+                cond: { $in: ["$$o.status", ["PENDING", "MATCHED"]] },
               },
             },
           },
+
           totalTraders: {
             $size: {
               $setUnion: [
@@ -84,9 +113,7 @@ export const getEvents = async (req, res) => {
                       $filter: {
                         input: "$orders",
                         as: "o",
-                        cond: {
-                          $in: ["$$o.status", ["PENDING", "MATCHED"]],
-                        },
+                        cond: { $in: ["$$o.status", ["PENDING", "MATCHED"]] },
                       },
                     },
                     as: "o",
@@ -96,22 +123,46 @@ export const getEvents = async (req, res) => {
               ],
             },
           },
+
+          /* ✅ MATCH NAME SAFE */
+          matchName: {
+            $ifNull: [
+              "$matchInfo.name",
+              {
+                $cond: [
+                  { $and: ["$matchInfo.teamA", "$matchInfo.teamB"] },
+                  { $concat: ["$matchInfo.teamA", " vs ", "$matchInfo.teamB"] },
+                  "Unknown Match",
+                ],
+              },
+            ],
+          },
         },
       },
 
-      { $project: { orders: 0 } },
+      /* 🧹 CLEAN */
+      {
+        $project: {
+          orders: 0,
+          matchInfo: 0,
+        },
+      },
 
-      // 🎯 SORT APPLY HOTA HAI YAHA
       { $sort: sortOptions },
     ]);
 
     res.status(200).json({
       status: true,
+      count: events.length,
       data: events,
-      message: "Events with trade count",
+      message: "Events fetched successfully",
     });
-  } catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+  } catch (error) {
+    console.error("Get Events Error:", error);
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
   }
 };
 
