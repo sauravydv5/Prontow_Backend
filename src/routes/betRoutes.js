@@ -2,6 +2,7 @@ import express from "express";
 import {
   refreshMatches,
   addMatches,
+  updateMatchStatus,
   getMatches,
   createEvent,
   settleEvent,
@@ -70,6 +71,8 @@ router.get("/events/:eventId/live", getEventWithLiveScore);
 router.post("/admin/refresh-matches", protect, admin, refreshMatches);
 
 router.post("/admin/add-matches", addMatches);
+
+router.post("/admin/update-match-status", updateMatchStatus);
 
 // Admin match list
 router.get("/admin/matches", protect, admin, getMatches);

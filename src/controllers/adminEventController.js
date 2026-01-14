@@ -110,6 +110,57 @@ export const addMatches = async (req, res) => {
 };
 
 /* =====================================================
+   🛠️ ADMIN: UPDATE MATCH STATUS BY ID
+===================================================== */
+export const updateMatchStatus = async (req, res) => {
+  try {
+    const { matchId, makeLive } = req.body;
+    // makeLive = true  → LIVE
+    // makeLive = false → NOT STARTED
+
+    if (!matchId) {
+      return res.status(400).json({
+        success: false,
+        message: "matchId is required",
+      });
+    }
+
+    const match = await CricketMatch.findById(matchId);
+
+    if (!match) {
+      return res.status(404).json({
+        success: false,
+        message: "Match not found",
+      });
+    }
+
+    if (makeLive === true) {
+      match.isLive = true;
+      match.isUpcoming = false;
+      match.status = "Match is Live";
+    } else {
+      match.isLive = false;
+      match.isUpcoming = true;
+      match.status = "Match not started";
+    }
+
+    match.lastUpdated = new Date();
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "Match status updated successfully",
+      data: match,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/* =====================================================
    📋 GET MATCHES (LIVE + UPCOMING ONLY)
 ===================================================== */
 
