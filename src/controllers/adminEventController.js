@@ -24,13 +24,13 @@ export const refreshMatches = async (req, res) => {
 };
 
 /* =====================================================
-   📋 ADD STATIC MATCHES API
+   📋 ADD STATIC / MANUAL MATCHES API
 ===================================================== */
+
 export const addMatches = async (req, res) => {
   try {
     const matches = req.body;
 
-    // 🛑 Validation
     if (!Array.isArray(matches) || matches.length === 0) {
       return res.status(400).json({
         success: false,
@@ -38,15 +38,57 @@ export const addMatches = async (req, res) => {
       });
     }
 
+    const now = new Date();
+
+    // 🔥 Start of today (UTC safe)
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+
     const bulkOps = matches.map((match) => {
-      if (!match.apiMatchId || !match.name) {
-        throw new Error("apiMatchId and name are required");
+      if (!match.apiMatchId || !match.name || !match.dateTimeGMT) {
+        throw new Error("apiMatchId, name and dateTimeGMT are required");
+      }
+
+      const matchDate = new Date(match.dateTimeGMT);
+
+      // ❌ Past day matches not allowed
+      if (matchDate < startOfToday) {
+        throw new Error("Past matches are not allowed");
       }
 
       return {
         updateOne: {
           filter: { apiMatchId: match.apiMatchId },
-          update: { $set: match },
+          update: {
+            $set: {
+              apiMatchId: match.apiMatchId,
+              name: match.name,
+              matchType: match.matchType || "",
+              status: match.status || "Match not started",
+              series: match.series || "",
+
+              dateTimeGMT: matchDate,
+
+              teamAName: match.teamAName || "",
+              teamBName: match.teamBName || "",
+
+              teamAImg: match.teamAImg || "",
+              teamBImg: match.teamBImg || "",
+
+              teamAScore: "",
+              teamBScore: "",
+
+              // 🔥 FLAGS
+              isLive: false,
+              isUpcoming: true,
+
+              // 🔐 IDENTIFIER
+              source: "MANUAL",
+
+              lastUpdated: new Date(),
+            },
+          },
           upsert: true,
         },
       };
@@ -56,7 +98,7 @@ export const addMatches = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Matches added/updated successfully",
+      message: "Manual matches added successfully",
       count: matches.length,
     });
   } catch (error) {
@@ -73,15 +115,25 @@ export const addMatches = async (req, res) => {
 
 export const getMatches = async (req, res) => {
   try {
-    // 🔥 aaj + kal + next 3 din
-    const endDate = new Date();
+    const now = new Date();
+
+    // 🔥 Start of today (UTC)
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+
+    const endDate = new Date(startOfToday);
     endDate.setUTCDate(endDate.getUTCDate() + 5);
 
     const matches = await CricketMatch.find({
-      dateTimeGMT: { $lte: endDate },
+      dateTimeGMT: {
+        $gte: startOfToday, // 👈 today onwards
+        $lte: endDate, // 👈 next 5 days
+      },
+      $or: [{ isLive: true }, { isUpcoming: true }],
     }).sort({ dateTimeGMT: 1 });
 
-    res.status(200).json({
+    res.json({
       success: true,
       count: matches.length,
       data: matches,

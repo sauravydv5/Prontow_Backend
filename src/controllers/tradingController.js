@@ -268,38 +268,32 @@ export const getHistory = async (req, res) => {
   }
 };
 
+/* =====================================================
+   👤 GET MATCHES FOR USER
+===================================================== */
+
 export const getMatchesUser = async (req, res) => {
   try {
-    const { filter } = req.query;
     const now = new Date();
 
-    let query = {};
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
 
-    if (filter === "live") {
-      query = {
-        dateTimeGMT: { $lte: now },
-        status: { $not: /completed|finished/i },
-      };
-    }
+    const endDate = new Date(startOfToday);
+    endDate.setUTCDate(endDate.getUTCDate() + 5);
 
-    if (filter === "upcoming") {
-      query = {
-        dateTimeGMT: { $gt: now },
-      };
-    }
-
-    if (filter === "completed") {
-      query = {
-        status: { $regex: /completed|finished/i },
-      };
-    }
-
-    const matches = await CricketMatch.find(query)
-      .populate("teamA teamB")
-      .sort({ dateTimeGMT: 1 });
+    const matches = await CricketMatch.find({
+      dateTimeGMT: {
+        $gte: startOfToday,
+        $lte: endDate,
+      },
+      $or: [{ isLive: true }, { isUpcoming: true }],
+    }).sort({ dateTimeGMT: 1 });
 
     return res.status(200).json({
       status: true,
+      count: matches.length,
       data: matches,
       message: "Matches retrieved successfully",
     });

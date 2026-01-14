@@ -4,39 +4,24 @@ const cricketMatchSchema = new mongoose.Schema(
   {
     apiMatchId: { type: String, required: true, unique: true },
 
-    name: { type: String, required: true },
-    matchType: { type: String },
-    status: { type: String },
+    name: String,
+    matchType: String,
+    status: String,
+    series: String,
 
-    venue: { type: String },
+    dateTimeGMT: Date,
 
-    date: { type: Date },
-    dateTimeGMT: { type: Date },
+    teamAName: String,
+    teamBName: String,
 
-    teamA: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Team",
-      required: false,
-    },
-    teamB: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Team",
-      required: false,
-    },
+    teamAScore: String,
+    teamBScore: String,
 
-    score: [
-      {
-        r: Number,
-        w: Number,
-        o: Number,
-        inning: String,
-      },
-    ],
+    teamAImg: String,
+    teamBImg: String,
 
-    tossWinner: String,
-    tossChoice: String,
-    matchWinner: String,
-    hasSquad: Boolean,
+    isLive: { type: Boolean, default: false },
+    isUpcoming: { type: Boolean, default: false },
 
     lastUpdated: { type: Date, default: Date.now },
   },
