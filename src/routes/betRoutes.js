@@ -72,7 +72,7 @@ router.post("/admin/refresh-matches", protect, admin, refreshMatches);
 
 router.post("/admin/add-matches", addMatches);
 
-router.post("/admin/update-match-status", updateMatchStatus);
+router.patch("/admin/update-match-status", updateMatchStatus);
 
 // Admin match list
 router.get("/admin/matches", protect, admin, getMatches);
