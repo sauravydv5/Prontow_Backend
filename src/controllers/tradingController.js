@@ -81,7 +81,7 @@ export const getEvents = async (req, res) => {
         },
       },
 
-      /* 🔗 ORDERS LOOKUP */
+      /* ORDERS LOOKUP */
       {
         $lookup: {
           from: "betorders",
@@ -91,7 +91,7 @@ export const getEvents = async (req, res) => {
         },
       },
 
-      /* 📊 CALCULATIONS + MATCH NAME */
+      /*  CALCULATIONS + MATCH NAME */
       {
         $addFields: {
           totalTrades: {
@@ -124,7 +124,7 @@ export const getEvents = async (req, res) => {
             },
           },
 
-          /* ✅ MATCH NAME SAFE */
+          /*  MATCH NAME SAFE */
           matchName: {
             $ifNull: [
               "$matchInfo.name",
@@ -140,7 +140,7 @@ export const getEvents = async (req, res) => {
         },
       },
 
-      /* 🧹 CLEAN */
+      /*  CLEAN */
       {
         $project: {
           orders: 0,
